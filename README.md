@@ -36,7 +36,7 @@ All four use the same base model. The only independent variable is hand‑off st
 
 ## Layout
 
-```
+```text
 .
 ├── briefs/
 │   └── credit_hold_release.yaml      # task definition (constraints + edge cases)
@@ -84,7 +84,7 @@ python scripts/analyse.py
 
 ## What every run leaves on disk
 
-```
+```text
 runs/<timestamp>_<arch>/
 ├── summary.json                   # one row per completed run; written incrementally
 └── run_NN/
