@@ -1,0 +1,16 @@
+# API keys / secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.ipynb_checkpoints/
+
+# Run outputs
+runs/
+
+# Tooling
+.pytest_cache/
+.ruff_cache/

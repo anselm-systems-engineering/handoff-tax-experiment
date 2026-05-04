@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anselm.ing/schemas/process.schema.json",
+  "title": "BPMN-lite Process",
+  "description": "Structured process representation. Deliverables are validated against this schema before the constraint checker runs.",
+  "type": "object",
+  "required": ["id", "title", "roles", "systems", "steps"],
+  "properties": {
+    "id": { "type": "string" },
+    "title": { "type": "string" },
+    "roles": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "minItems": 1
+    },
+    "systems": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true,
+      "minItems": 1
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/step" }
+    },
+    "retention": {
+      "type": "object",
+      "properties": {
+        "after_close_months": { "type": "integer", "minimum": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "step": {
+      "type": "object",
+      "required": ["id", "kind", "role"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": {
+          "type": "string",
+          "enum": ["activity", "decision", "system", "wait"]
+        },
+        "role": { "type": "string" },
+        "system": { "type": "string" },
+        "description": { "type": "string" },
+        "produces": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["role", "timestamp", "rationale", "credit_data_ref", "decision", "amount", "case_record"]
+          },
+          "uniqueItems": true
+        },
+        "tags": {
+          "type": "array",
+          "description": "Semantic role of this step. Constraints reference these tags, not step IDs.",
+          "items": {
+            "type": "string",
+            "enum": [
+              "creates_order",
+              "raises_hold",
+              "reviews_hold",
+              "releases_hold",
+              "rejects_hold",
+              "escalates",
+              "closes_case"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "sla_hours": { "type": "number", "minimum": 0 },
+        "next": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "branches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["condition", "next"],
+            "properties": {
+              "condition": { "type": "string" },
+              "next": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

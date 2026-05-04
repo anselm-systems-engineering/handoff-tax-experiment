@@ -1,0 +1,72 @@
+# Phase 1 toy task — redesign the credit-hold release sub-process.
+#
+# This is deliberately small so the harness can be validated end-to-end before
+# scaling to the full order-to-cash task in Phase 2.
+
+id: credit_hold_release
+title: Credit-hold release sub-process
+
+description: >
+  A B2B distributor places customer orders on credit hold when the customer's
+  open balance plus the new order exceeds the credit limit. Design the process
+  by which a hold is reviewed, decided, and released (or rejected), under the
+  constraints listed below.
+
+constraints:
+  - id: sod_hold_release
+    kind: segregation_of_duties
+    rule: >
+      The role that creates the order MUST NOT be the role that releases the
+      credit hold for that order. Tag the order-creation step with
+      `creates_order` and the release step with `releases_hold`.
+    incompatible_tag_pairs:
+      - [creates_order, releases_hold]
+
+  - id: sla_review
+    kind: sla
+    rule: >
+      A new credit-hold review MUST start within 4 business hours of being
+      raised. Tag the review step with `reviews_hold` and declare
+      `sla_hours` <= 4 on it.
+    target_tag: reviews_hold
+    bound_lte: 4
+
+  - id: audit_trail
+    kind: auditability
+    rule: >
+      Every release-or-reject step MUST record the deciding role, timestamp,
+      rationale, and reference to the credit data consulted. Tag those steps
+      with `releases_hold` or `rejects_hold`.
+    target_tags: [releases_hold, rejects_hold]
+    required_fields: [role, timestamp, rationale, credit_data_ref]
+
+  - id: gdpr_retention
+    kind: retention
+    rule: >
+      Customer credit data attached to the case MUST be retained no longer than
+      24 months after case closure.
+    max_retention_months: 24
+
+  - id: sap_reuse
+    kind: system_reuse
+    rule: >
+      The case MUST be persisted in the existing SAP S/4 case-management module;
+      no new system of record may be introduced.
+    allowed_systems_of_record: [sap_s4_case_management]
+
+  - id: flow_completeness
+    kind: flow_completeness
+    rule: >
+      The process must form a connected flow from a start step to one or more
+      terminal steps. Every step must declare exactly one of `next` (a list of
+      outgoing step IDs), `branches` (for decisions, with conditions and next
+      step IDs), or `terminal: true`. All referenced step IDs must exist. Every
+      step must be reachable from at least one step tagged `creates_order`, and
+      a path from there must reach a terminal step.
+
+edge_cases:
+  - partial_release          # only part of the order is released
+  - escalation_to_finance    # high-value cases beyond a threshold
+  - automatic_reject         # cases beyond hard policy limits
+  - customer_dispute         # customer contests the hold
+  - reopened_after_close     # a closed case is reopened within retention window
