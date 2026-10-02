@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anselm.ing/schemas/ecosystem.schema.json",
+  "title": "ANSELM integrated knowledge ecosystem (cross-context deliverable)",
+  "description": "Typed deliverable of the cross-context coherence experiment. The typed knowledge cells and relations form the Tier 0–1 layer; attributes, assumptions and commitments carry the experiment's deterministic checker fields.",
+  "type": "object",
+  "required": ["id", "title", "cells", "relations"],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "cells": {
+      "type": "object",
+      "minProperties": 1,
+      "description": "Knowledge cells keyed by cell id. Each value conforms to cell.schema.json.",
+      "additionalProperties": { "$ref": "https://anselm.ing/schemas/cell.schema.json" }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "source", "target"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string" },
+          "source": { "type": "string" },
+          "target": { "type": "string" },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "attributes": {
+      "type": "object",
+      "description": "Per-cell deterministic attributes consumed by the domain checker families.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "mass_kg": { "type": "number", "exclusiveMinimum": 0 },
+          "voltage_v": { "type": "number", "exclusiveMinimum": 0 },
+          "peak_current_a": { "type": "number", "exclusiveMinimum": 0 },
+          "thermal_duty_w": { "type": "number", "exclusiveMinimum": 0 },
+          "sensors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "critical"],
+              "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "critical": { "type": "boolean" },
+                "coverage": { "enum": ["redundant_channel", "failsafe_trigger"] },
+                "covered_by": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "description": "Assumptions recorded by either side. `response_by` records the other side's acknowledgment or contestation.",
+      "items": {
+        "type": "object",
+        "required": ["id", "author", "text"],
+        "properties": {
+          "id": { "type": "string" },
+          "author": { "type": "string" },
+          "text": { "type": "string", "minLength": 1 },
+          "response_by": { "type": "string" },
+          "contested": { "type": "boolean" }
+        }
+      }
+    },
+    "commitments": {
+      "type": "array",
+      "description": "Commitments crossing the seam. `term` must resolve in the controlled term table (terms.yaml).",
+      "items": {
+        "type": "object",
+        "required": ["id", "from", "to", "term", "claim"],
+        "properties": {
+          "id": { "type": "string" },
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "term": { "type": "string", "minLength": 1 },
+          "claim": { "type": "string", "minLength": 1 },
+          "agreed": { "type": "boolean" }
+        }
+      }
+    }
+  }
+}

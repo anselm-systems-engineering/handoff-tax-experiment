@@ -9,10 +9,14 @@ Errors are mechanical defects: invalid frontmatter, dangling references,
 vocabulary violations. Warnings are surfaced commitments that need human
 attention: contradictions (always routed to the Knowledge Steward), decisions
 without a recorded basis, orphan cells.
+
+The module is split into parsing (file I/O) and validation (in-memory), so the
+cross-context experiment can reuse the validation half directly at a seam.
 """
 from __future__ import annotations
 
 import datetime
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -45,65 +49,74 @@ class Report:
 def check_ecosystem(cell_dir: str | Path, vocabulary: Vocabulary) -> Report:
     """Run the full oracle over a directory of cells and its relations.yaml."""
     cell_dir = Path(cell_dir)
-    report = Report()
 
-    cells = _load_cells(cell_dir, vocabulary, report)
-    relations = _load_relations(cell_dir, vocabulary, cells, report)
-    report.cells = cells
-    report.relations = relations
+    cells, parse_errors, cell_files = parse_cells(cell_dir)
+    relations, relation_errors = parse_relations(cell_dir)
 
-    _semantic_flags(vocabulary, cells, relations, report)
+    report = Report(cells=cells, relations=relations or [])
+    report.errors.extend(parse_errors)
+    report.errors.extend(relation_errors)
+
+    report.errors.extend(validate_cells(cells, vocabulary))
+    if relations is not None:
+        report.errors.extend(validate_relations(relations, vocabulary, cells))
+    report.warnings.extend(semantic_flags(cells, relations or []))
+
+    for cell_id in cells:
+        filename = cell_files.get(cell_id)
+        if filename is not None and cell_id != filename:
+            report.warnings.append(
+                Finding("warning", cell_id, f"cell id does not match file name '{filename}'.")
+            )
     return report
 
 
-# ---------------------------------------------------------------- Tier 0
+# ---------------------------------------------------------------- parsing
 
-def _load_cells(
-    cell_dir: Path, vocabulary: Vocabulary, report: Report
-) -> dict[str, dict[str, Any]]:
+def parse_cells(cell_dir: Path) -> tuple[dict[str, dict[str, Any]], list[Finding], dict[str, str]]:
+    """Parse all *.md cells in a directory. Returns (cells, errors, id→stem)."""
     schema = _load_cell_schema()
     cells: dict[str, dict[str, Any]] = {}
+    cell_files: dict[str, str] = {}
+    errors: list[Finding] = []
     for path in sorted(cell_dir.glob("*.md")):
         frontmatter, err = _parse_frontmatter(path)
         if err:
-            report.errors.append(Finding("error", path.stem, err))
+            errors.append(Finding("error", path.stem, err))
             continue
         try:
             jsonschema.validate(instance=frontmatter, schema=schema)
         except jsonschema.ValidationError as e:
             where = "/".join(str(p) for p in e.path) or "<frontmatter>"
-            report.errors.append(
+            errors.append(
                 Finding("error", path.stem, f"invalid frontmatter at {where}: {e.message}")
             )
             continue
-
         cell_id = frontmatter["id"]
-        if frontmatter["type"] not in vocabulary.cell_types:
-            report.errors.append(
-                Finding("error", cell_id, f"cell type '{frontmatter['type']}' not in vocabulary.")
-            )
-            continue
-        if frontmatter["status"] not in vocabulary.statuses:
-            report.errors.append(
-                Finding("error", cell_id, f"status '{frontmatter['status']}' not in vocabulary.")
-            )
-            continue
         if cell_id in cells:
-            report.errors.append(Finding("error", cell_id, "duplicate cell id."))
+            errors.append(Finding("error", cell_id, "duplicate cell id."))
             continue
-        if cell_id != path.stem:
-            report.warnings.append(
-                Finding("warning", cell_id, f"cell id does not match file name '{path.stem}'.")
-            )
         cells[cell_id] = frontmatter
-    return cells
+        cell_files[cell_id] = path.stem
+    return cells, errors, cell_files
+
+
+def parse_relations(cell_dir: Path) -> tuple[list[dict[str, Any]] | None, list[Finding]]:
+    path = cell_dir / "relations.yaml"
+    if not path.exists():
+        return None, [Finding("error", "relations", f"missing {path.name}.")]
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as e:
+        return None, [Finding("error", "relations", f"relations.yaml is invalid: {e}")]
+    if not isinstance(data, dict) or not isinstance(data.get("relations"), list):
+        return None, [Finding("error", "relations", "relations.yaml must map to a list.")]
+    return data["relations"], []
 
 
 def _load_cell_schema() -> dict[str, Any]:
-    schema_path = (
-        Path(__file__).resolve().parents[3] / "schemas" / "cell.schema.json"
-    )
-    return yaml.safe_load(schema_path.read_text(encoding="utf-8"))
+    schema_path = Path(__file__).resolve().parents[3] / "schemas" / "cell.schema.json"
+    return json.loads(schema_path.read_text(encoding="utf-8"))
 
 
 def _parse_frontmatter(path: Path) -> tuple[dict[str, Any] | None, str | None]:
@@ -137,61 +150,84 @@ def _stringify(obj: Any) -> Any:
     return obj
 
 
-# ---------------------------------------------------------------- Tier 1
+# ---------------------------------------------------------------- validation (in-memory)
 
-def _load_relations(
-    cell_dir: Path,
+def validate_cells(cells: dict[str, dict[str, Any]], vocabulary: Vocabulary) -> list[Finding]:
+    """Schema + vocabulary cell checks. Schema checks run again here so the
+    in-memory path (the seam gate) enforces the same Tier 0 contract as the
+    file-based path."""
+    errors: list[Finding] = []
+    for cell_id, frontmatter in cells.items():
+        try:
+            jsonschema.validate(instance=frontmatter, schema=_cell_schema())
+        except jsonschema.ValidationError as e:
+            where = "/".join(str(p) for p in e.path) or "<frontmatter>"
+            errors.append(
+                Finding("error", cell_id, f"invalid frontmatter at {where}: {e.message}")
+            )
+            continue
+        if frontmatter["type"] not in vocabulary.cell_types:
+            errors.append(
+                Finding("error", cell_id, f"cell type '{frontmatter['type']}' not in vocabulary.")
+            )
+        if frontmatter["status"] not in vocabulary.statuses:
+            errors.append(
+                Finding("error", cell_id, f"status '{frontmatter['status']}' not in vocabulary.")
+            )
+    return errors
+
+
+_CELL_SCHEMA: dict[str, Any] | None = None
+
+
+def _cell_schema() -> dict[str, Any]:
+    global _CELL_SCHEMA
+    if _CELL_SCHEMA is None:
+        schema_path = Path(__file__).resolve().parents[3] / "schemas" / "cell.schema.json"
+        _CELL_SCHEMA = json.loads(schema_path.read_text(encoding="utf-8"))
+    return _CELL_SCHEMA
+
+
+def validate_relations(
+    relations: list[dict[str, Any]],
     vocabulary: Vocabulary,
     cells: dict[str, dict[str, Any]],
-    report: Report,
-) -> list[dict[str, Any]]:
-    path = cell_dir / "relations.yaml"
-    if not path.exists():
-        report.errors.append(Finding("error", "relations", f"missing {path.name}."))
-        return []
-    try:
-        data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    except yaml.YAMLError as e:
-        report.errors.append(Finding("error", "relations", f"relations.yaml is invalid: {e}"))
-        return []
-    if not isinstance(data, dict) or not isinstance(data.get("relations"), list):
-        report.errors.append(Finding("error", "relations", "relations.yaml must map to a list."))
-        return []
-
-    relations: list[dict[str, Any]] = []
+) -> list[Finding]:
+    """Closed vocabulary, dangling references, domain/range compliance."""
+    errors: list[Finding] = []
     seen_ids: set[str] = set()
-    for edge in data["relations"]:
+    for edge in relations:
         if not isinstance(edge, dict):
-            report.errors.append(Finding("error", "relations", "each relation must be a mapping."))
+            errors.append(Finding("error", "relations", "each relation must be a mapping."))
             continue
         rid = edge.get("id")
         if not isinstance(rid, str) or not rid:
-            report.errors.append(Finding("error", "relations", "relation without an id."))
+            errors.append(Finding("error", "relations", "relation without an id."))
             continue
         if rid in seen_ids:
-            report.errors.append(Finding("error", rid, "duplicate relation id."))
+            errors.append(Finding("error", rid, "duplicate relation id."))
             continue
         seen_ids.add(rid)
 
         rtype_name = edge.get("type")
         rtype = vocabulary.relations.get(rtype_name) if isinstance(rtype_name, str) else None
         if rtype is None:
-            report.errors.append(
+            errors.append(
                 Finding("error", rid, f"relation type '{rtype_name}' not in the vocabulary.")
             )
             continue
 
         source, target = edge.get("source"), edge.get("target")
         if not isinstance(source, str) or source not in cells:
-            report.errors.append(Finding("error", rid, f"source '{source}' is not a known cell."))
+            errors.append(Finding("error", rid, f"source '{source}' is not a known cell."))
             continue
         if not isinstance(target, str) or target not in cells:
-            report.errors.append(Finding("error", rid, f"target '{target}' is not a known cell."))
+            errors.append(Finding("error", rid, f"target '{target}' is not a known cell."))
             continue
 
         source_type, target_type = cells[source]["type"], cells[target]["type"]
         if "*" not in rtype.domain and source_type not in rtype.domain:
-            report.errors.append(
+            errors.append(
                 Finding(
                     "error",
                     rid,
@@ -199,43 +235,39 @@ def _load_relations(
                 )
             )
         if "*" not in rtype.targets and target_type not in rtype.targets:
-            report.errors.append(
+            errors.append(
                 Finding(
                     "error",
                     rid,
                     f"'{rtype_name}' cannot point at a {target_type} (allowed: {', '.join(rtype.targets)}).",
                 )
             )
-        relations.append(edge)
-
-    return relations
+    return errors
 
 
-# ---------------------------------------------------------------- flags
+def semantic_flags(
+    cells: dict[str, dict[str, Any]], relations: list[dict[str, Any]]
+) -> list[Finding]:
+    """Warnings, not errors: commitments surfaced for human attention."""
+    warnings: list[Finding] = []
 
-def _semantic_flags(
-    vocabulary: Vocabulary,
-    cells: dict[str, dict[str, Any]],
-    relations: list[dict[str, Any]],
-    report: Report,
-) -> None:
     active_ids = {cid for cid, c in cells.items() if c["status"] == "active"}
     referenced = {e.get("source") for e in relations} | {e.get("target") for e in relations}
     for cid in sorted(active_ids - referenced):
-        report.warnings.append(
+        warnings.append(
             Finding("warning", cid, "orphan cell: no relation references it. Steward, please review.")
         )
 
     decision_ids = {cid for cid, c in cells.items() if c["type"] == "decision"}
     grounded = {e.get("source") for e in relations if e.get("type") == "derives_from"}
     for cid in sorted(decision_ids - grounded):
-        report.warnings.append(
+        warnings.append(
             Finding("warning", cid, "decision without a recorded basis (no derives_from edge).")
         )
 
     for edge in relations:
         if edge.get("type") == "conflicts":
-            report.warnings.append(
+            warnings.append(
                 Finding(
                     "warning",
                     str(edge.get("id")),
@@ -244,3 +276,4 @@ def _semantic_flags(
                     f"Note: {edge.get('note', '(no note)')}",
                 )
             )
+    return warnings
