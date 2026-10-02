@@ -1,0 +1,89 @@
+# Cross-context coherence brief — "Project Atlas" (two-subsystem seam).
+#
+# Phase 1 task for the ontology-at-the-seams experiment: two isolated reasoning
+# contexts (Jane: propulsion; Ahmed: energy & thermal) must integrate through a
+# boundary artifact. The variable under test is the FORMALISM OF THE SEAM, not
+# the task. See tier01/CROSS-CONTEXT-EXPERIMENT.md for the design.
+
+id: atlas_cross_context
+title: Propulsion ↔ energy/thermal integration for Project Atlas
+
+description: >
+  Jane owns the propulsion subsystem (locomotion on loose sand, hybrid
+  wheel-leg concept). Ahmed owns energy storage and thermal management
+  (battery pack, motor controller cooling, power distribution). The two
+  subsystems meet at the motor-controller ↔ battery power interface. Both
+  contexts are isolated; they can only exchange a boundary artifact. The
+  integrated design must satisfy all constraints below, in both the happy
+  path and the named edge cases.
+
+vocabulary: tier01/vocabulary.yaml   # closed cell types + relation set (Tier 1)
+
+constraints:
+  - id: mass_budget
+    kind: mass
+    rule: >
+      Total vehicle mass must not exceed 350 kg. Every component in the
+      integrated design must declare `mass_kg`, and the sum over all
+      components must be <= 350.
+    fields: [mass_kg]
+    bound_lte: 350
+
+  - id: interface_completeness
+    kind: interface
+    rule: >
+      The power interface between propulsion and energy subsystems must
+      declare voltage (V), peak current (A), and thermal duty (max W to
+      dissipate at the interface). An interface cell is complete iff all
+      three are present and positive.
+    target_type: interface
+    required_fields: [voltage_v, peak_current_a, thermal_duty_w]
+
+  - id: redundancy
+    kind: safety
+    rule: >
+      Every sensor in the propulsion loop that is single-point-of-failure
+      critical must be covered by either a redundant channel or a failsafe
+      trigger. Coverage must be declared per sensor; undeclared sensors are
+      violations. "COTS-X has no redundancy" is a fact, not a coverage.
+    target_tag: sensor-critical
+
+  - id: term_consistency
+    kind: vocabulary
+    rule: >
+      Commitments crossing the seam must use the controlled terms of the
+      shared vocabulary. A term used by one side and echoed by the other
+      must denote the same mechanism (checked by a deterministic alias
+      table). Undefined aliases are violations.
+    alias_table: tier01/examples/atlas/terms.yaml
+
+  - id: no_dangling_assumptions
+    kind: assumptions
+    rule: >
+      Every assumption recorded by one side must be acknowledged or
+      contested by the other side in the integrated design. Unacknowledged
+      assumptions are violations.
+
+  - id: typed_graph_validity
+    kind: structure
+    rule: >
+      The integrated deliverable is a typed ecosystem (cells + relations).
+      It must pass the deterministic tier01 oracle: schema-valid
+      frontmatter, closed relation vocabulary, domain/range compliance,
+      no dangling references.
+
+edge_cases:
+  - id: ec_thermal_peak
+    description: >
+      Peak sand operation drives motor controller temperature above its
+      continuous rating; the thermal duty declared at the interface must
+      reflect peak, not nominal.
+  - id: ec_sensor_loss
+    description: >
+      A motor-controller telemetry sensor fails during a climb; the
+      integrated design must reach limp-home without crossing the
+      interface's peak current limit.
+  - id: ec_battery_depleted
+    description: >
+      Battery at 10% state of charge on loose sand; propulsion must
+      degrade gracefully without exceeding the mass or interface bounds.

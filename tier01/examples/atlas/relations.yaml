@@ -1,0 +1,63 @@
+# Typed relations over the Atlas knowledge cells (Tier 1).
+# Every edge uses a relation type from vocabulary.yaml; no free-form edges.
+
+relations:
+  - id: r-001
+    type: satisfies
+    source: fn-001
+    target: need-001
+    note: "Hybrid wheel-leg delivers the sand-terrain capability"
+
+  - id: r-002
+    type: decides
+    source: dec-001
+    target: fn-001
+    note: "Concept B selected as the propulsion function"
+
+  - id: r-003
+    type: derives_from
+    source: dec-001
+    target: need-001
+    note: "Terrain capability was the primary driver"
+
+  - id: r-004
+    type: derives_from
+    source: dec-001
+    target: constraint-001
+    note: "Mass ceiling eliminated Concepts A and C"
+
+  - id: r-005
+    type: constrains
+    source: constraint-001
+    target: fn-001
+    note: "Propulsion mass budget is bounded by the 350 kg ceiling"
+
+  - id: r-006
+    type: refines
+    source: if-001
+    target: fn-001
+    note: "Power bus is the electrical face of the propulsion function"
+
+  - id: r-007
+    type: constrains
+    source: if-001
+    target: comp-001
+    note: "Battery pack must present the 48 V / 60 A bus"
+
+  - id: r-008
+    type: decides
+    source: dec-002
+    target: comp-002
+    note: "COTS-X chosen as the motor controller"
+
+  - id: r-009
+    type: derives_from
+    source: dec-002
+    target: constraint-001
+    note: "Cost-driven choice, bounded by the mass budget"
+
+  - id: r-010
+    type: conflicts
+    source: constraint-002
+    target: dec-002
+    note: "Failsafe requires sensor redundancy; COTS-X has none — open, routed to steward"

@@ -4,6 +4,8 @@
 
 This repository is the empirical backbone of [**ANSELM Article 4 — *Not a Committee, a Conversation***](https://anselm.ing/articles/not-a-committee-a-conversation/). The article argues, on information‑theoretic grounds, that fragmenting a task across role‑bound LLM agents pays a **hand‑off tax** — each summary‑mediated interface is a lossy channel, and the data‑processing inequality is unforgiving. This repo runs the experiment that measures that tax.
 
+It also hosts the **Tier 0–1 prototype** for Article 5 — *Ontology at the Seams* — and the pre-registered design of its cross-context experiment. See [`tier01/`](tier01/) (prototype + worked example) and [`tier01/CROSS-CONTEXT-EXPERIMENT.md`](tier01/CROSS-CONTEXT-EXPERIMENT.md) (design, no runs yet).
+
 ## Headline result (Phase 1, n = 5 per architecture)
 
 Same base model (`gpt-4o-mini-2024-07-18`) across all four architectures; only hand‑off structure varies. Task: redesign the **credit‑hold release** sub‑process under six constraint families (segregation of duties, SLA, audit trail, GDPR retention, system‑of‑record reuse, structural flow completeness).

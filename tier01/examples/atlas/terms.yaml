@@ -1,0 +1,28 @@
+# Controlled terms at the propulsion ↔ energy seam.
+#
+# Term consistency (constraint id: term_consistency in
+# briefs/atlas_cross_context.yaml) is checked deterministically against this
+# table: a commitment crossing the seam may use a term or one of its declared
+# aliases; anything else is an undefined term. The table is closed and
+# versioned like the vocabulary.
+
+terms:
+  - term: limp-home mode
+    canonical: failsafe locomotion state entered on single-point sensor failure
+    aliases: [limp-home, failsafe mode]
+
+  - term: thermal duty
+    canonical: heat to dissipate at the interface under peak operation, in watts
+    aliases: [cooling load, heat load]
+
+  - term: peak current
+    canonical: maximum interface current under load, in amperes
+    aliases: [max current, I_peak]
+
+  - term: redundant channel
+    canonical: second independent signal path for a critical sensor
+    aliases: [redundancy, dual channel]
+
+  - term: failsafe trigger
+    canonical: deterministic condition that forces limp-home mode
+    aliases: [safety trigger, limp trigger]

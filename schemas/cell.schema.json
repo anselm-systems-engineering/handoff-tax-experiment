@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://anselm.ing/schemas/cell.schema.json",
+  "title": "ANSELM Knowledge Cell (Tier 0)",
+  "description": "Typed frontmatter for a knowledge cell. Tier 0 of the ontological commitment ladder: a controlled vocabulary and cell types only — no hand-authored ontology.",
+  "type": "object",
+  "required": ["id", "title", "type", "status", "author", "date"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Cell identifier, unique within the ecosystem. Lowercase kebab-case."
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "type": "string",
+      "enum": ["need", "function", "component", "decision", "constraint", "interface"],
+      "description": "Closed Tier 0 vocabulary of cell types."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "active", "superseded", "withdrawn"],
+      "description": "Lifecycle state. Superseded cells stay in the thread; they are history, not waste."
+    },
+    "author": {
+      "type": "string",
+      "minLength": 1
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "ISO date of the last commit to this cell."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Open semantic tags (e.g. safety-critical, propulsion). Open by design — only the cell types are closed at Tier 0."
+    }
+  }
+}

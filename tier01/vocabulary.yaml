@@ -1,0 +1,71 @@
+# ANSELM Tier 1 vocabulary — the closed relation set.
+#
+# Tier 1 of the ontological commitment ladder: a small, closed set of typed
+# relations over knowledge cells. The rules are:
+#
+#   * No free-form edges in the committed graph.
+#   * Every relation type MUST name its consumers (the praxeological rule:
+#     a formal element earns its keep only through the acts that consume it).
+#     The oracle refuses to run on a vocabulary with a consumerless relation.
+#   * domain / range restrict which cell types an edge may connect.
+#     `"*"` means any cell type.
+#
+# This file is versioned like code. Changing it invalidates committed graphs
+# built against the previous vocabulary.
+
+schema_version: 1
+
+cell_types:
+  - need
+  - function
+  - component
+  - decision
+  - constraint
+  - interface
+
+statuses:
+  - draft
+  - active
+  - superseded
+  - withdrawn
+
+relations:
+  satisfies:
+    domain: [function, component]
+    range: [need]
+    consumers:
+      - "coverage report: every need with a satisfying element"
+      - "gap analysis: needs with no satisfying function or component"
+
+  refines:
+    domain: [function, interface, component]
+    range: [function, interface]
+    consumers:
+      - "decomposition views (Mermaid)"
+      - "impact analysis: what inherits a change to the refined element"
+
+  constrains:
+    domain: [constraint, interface, component]
+    range: [function, component, interface]
+    consumers:
+      - "change-impact: which elements are bounded by a given constraint"
+      - "constraint coverage report"
+
+  conflicts:
+    domain: ["*"]
+    range: ["*"]
+    consumers:
+      - "contradiction routing to the Knowledge Steward (always surfaced)"
+
+  derives_from:
+    domain: [decision]
+    range: [need, constraint, function, component, interface]
+    consumers:
+      - "rationale traceability: the recorded basis of every decision"
+      - "decision-without-basis audit flag"
+
+  decides:
+    domain: [decision]
+    range: [function, component, interface]
+    consumers:
+      - "decision coverage: no architectural element without an owning decision"
