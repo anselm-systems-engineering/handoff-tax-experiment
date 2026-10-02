@@ -122,6 +122,89 @@ shape and vocabulary. Phase 1 (n=5) will tell whether the count comparison
 follows the pre-registered prediction or its falsification.
 
 
+## 0.5 Formal amendment — metric v2 and confirmatory phase 2c
+
+*Written before any DeepSeek runs were executed, after phase 1/2a/2b data were
+collected. This amendment supersedes the naive metric of §2 and §5 and
+re-registers the analysis for the confirmatory phase.*
+
+**Why:** phase 1 proved that the pre-registered metric (raw violation count)
+rewards information loss — a dropped subsystem costs one violation while a
+present-but-incomplete subsystem costs one per missing field. The revision
+below fixes the confound structurally, not interpretively.
+
+**Metric v2 (counting rules):**
+
+1. **Preservation** (primary): number of valid cells in the final deliverable
+   (`len(ecosystem.cells)`). Assumption-free; high preservation = the design
+   survived the seam. Reported per run as a distribution; compared with an
+   exact two-sample permutation test.
+2. **Domain violations per preserved cell** (secondary): non-structural
+   violations ÷ cell count. Normalises domain completeness by how much design
+   actually crossed the seam — a condition can no longer win by dropping
+   content.
+3. **Structural violations** (tertiary): `typed_graph_validity` count.
+4. Cost: gate rejection rounds, tokens — reported, not tested.
+
+**Statistical plan:** exact two-sample permutation test (n=5 vs n=5, 252
+combinations, two-sided) on preservation and on domain-violations-per-cell;
+effect sizes reported alongside. No claim is made from raw violation counts,
+which remain underpowered at n=5.
+
+**Confirmatory/exploratory split:**
+- *Exploratory (hypothesis-generating)*: all readings of phases 1, 2a, 2b —
+  including the step-function refinement and the confound discovery. These
+  were learned from data and may not be re-sold as confirmations.
+- *Confirmatory (hypothesis-testing)*: phase 2c (DeepSeek, v1 brief, k=3,
+  n=5 per condition), pre-registered here against metric v2:
+  - H1: typed-seam preservation > prose-seam preservation;
+  - H2: typed-seam domain-violations-per-cell ≤ prose-seam;
+  - H3: typed-seam structural violations = 0.
+  Falsification of any of H1–H3 on fresh data is to be reported as such.
+
+**Declared limitations carried into any publication:** one task family, one
+seam topology, n=5, treatment/measurement coupling (the gate shares the
+tier01 validator with the final checker), oracle measures declarations not
+truth, interpretation unblinded, two-vendor model pool.
+
+## 0.6 Phase 2c results — confirmatory (2026-10-03, DeepSeek deepseek-chat, v1 brief, k=3, n=5)
+
+| Condition | Violations (mean ± std) | Valid cells | Structural violations |
+|-----------|-------------------------|-------------|-----------------------|
+| typed-seam | 4.0 ± 2.3 | 9,9,9,9,9 | 0 |
+| prose-seam | 20.8 ± 8.4 | 0,0,0,0,0 | 88 |
+
+**Verdict on the pre-registered hypotheses (fresh data, metric v2):**
+
+- **H1 (preservation) — CONFIRMED.** Typed: 9 valid cells in 5/5 runs; prose:
+  0 valid cells in 5/5 runs. Exact permutation test p = 0.0079 (complete
+  separation).
+- **H2 (domain violations per valid cell) — CONFIRMED, in strong form.** The
+  prose seam carries no valid content at all, so the ratio is undefined (∞);
+  typed is finite (0.22–0.89).
+- **H3 (typed structural validity) — CONFIRMED.** 0 in every run, matching
+  all earlier phases.
+
+**A failure-mode taxonomy, honestly recorded.** The prose seam fails in two
+distinct ways depending on the model family: the GPT family *collapses*
+(1–2 raw cells, valid 0), DeepSeek *over-produces* (7–16 raw cells, valid 0 —
+the integrator invents its own vocabulary, e.g. `type: subsystem`, and omits
+required fields). A raw-cell count would have falsified H1 on DeepSeek
+(prose 10.2 vs typed 9.0 mean raw cells); the amendment's specification of
+*valid* cells is the load-bearing definition. Implementation note: the first
+v2 implementation counted raw cells; it was corrected to the written
+specification (valid = passing tier01 schema + vocabulary) before this
+confirmatory analysis was finalised. Both readings are recorded here rather
+than silently merged.
+
+**Status of the whole experiment after 2c:** the claim "the typed seam
+preserves the design across model families, brief sizes, and round-trips,
+while the prose seam fails to carry structurally valid content at all" is now
+**confirmatory** on one pre-registered phase; the step-function reading and
+the failure-mode taxonomy remain exploratory. Replication across a second
+seam topology and a second task family is open and pre-declared in §7.
+
+
 ## 1. Research question
 
 Article 4 established that a single continuous context beats fragmented
